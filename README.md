@@ -1,7 +1,7 @@
  
-# Flask App with MySQL Docker Setup
+# Deploymet of Flask App with MySQL By AWS EKS 
 
-## This is a simple Flask app that interacts with a MySQL database. The app allows users to submit messages, which are then stored in the database and displayed on the frontend.
+### This is a simple Flask app that interacts with a MySQL database. The app allows users to submit messages, which are then stored in the database and displayed on the frontend.
 
 ![Architecture Diagram](https://github.com/TusharGadhave/Two-Tier-Application-Deployment/blob/main/flask%20output.png)
 
@@ -15,49 +15,79 @@ Before you begin, make sure you have the following installed:
 
 - Docker
 - Git (optional, for cloning the repository)
+- Kubernetes
+- AWS EKS
 
 ## Setup
 
+1. Install Kubectl on instance
+
+   ```bash
+   curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
+   echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+   chmod +x kubectl
+   mkdir -p ~/.local/bin
+   mv ./kubectl ~/.local/bin/kubectl
+   ```
+2. Install eksctl cluster
+
+   ```bash
+   # for ARM systems, set ARCH to: `arm64`, `armv6` or `armv7`
+   ARCH=amd64
+   PLATFORM=$(uname -s)_$ARCH
+
+   curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+
+   # (Optional) Verify checksum
+   curl -sL "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
+
+   tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+
+   sudo mv /tmp/eksctl /usr/local/bin
+   ```
+3. Configure Your AWS CLI
+4. Create Cluster by eksctl
+   ```bash
+   eksctl create cluster --name=ClusterName --region=RegionName --nodes-min 2 --nodes-max 3
+   ```
+
+## Steps
 1. Clone this repository (if you haven't already):
 
    ```bash
-   git clone https://github.com/your-username/your-repo-name.git
+   https://github.com/TusharGadhave/Two-Tier-Application-Deployment
    ```
 
 2. Navigate to the project directory:
 
    ```bash
-   cd your-repo-name
+   cd Two-Tier-Application-Deployment/k8s
    ```
 
-3. Create a `.env` file in the project directory to store your MySQL environment variables:
+3. Apply a deployment manifest file of Flask APP :
 
    ```bash
-   touch .env
+   Kubectl apply -f two-tier-app-deployment.yml
    ```
 
-4. Open the `.env` file and add your MySQL configuration:
+4. Apply a Service manifest file of Flask APP :
 
    ```
-   MYSQL_HOST=mysql
-   MYSQL_USER=your_username
-   MYSQL_PASSWORD=your_password
-   MYSQL_DB=your_database
+   kubectl apply -f two-tier-app-svc.yml
    ```
 
-## Usage
-
-1. Start the containers using Docker Compose:
+5. Apply a deployment manifest file of MySql Database :
 
    ```bash
-   docker-compose up --build
+    Kubectl apply -f mysql-deployment.yml
    ```
 
-2. Access the Flask app in your web browser:
+6. Apply a Service manifest file of MySql Database :
 
-   - Frontend: http://localhost
-   - Backend: http://localhost:5000
-
+   ```bash
+    Kubectl apply -f mysql-svc.yml
+   ```
 3. Create the `messages` table in your MySQL database:
 
    - Use a MySQL client or tool (e.g., phpMyAdmin) to execute the following SQL commands:
@@ -74,53 +104,8 @@ Before you begin, make sure you have the following installed:
    - Visit http://localhost to see the frontend. You can submit new messages using the form.
    - Visit http://localhost:5000/insert_sql to insert a message directly into the `messages` table via an SQL query.
 
-## Cleaning Up
 
-To stop and remove the Docker containers, press `Ctrl+C` in the terminal where the containers are running, or use the following command:
 
-```bash
-docker-compose down
-```
-
-## To run this two-tier application using  without docker-compose
-
-- First create a docker image from Dockerfile
-```bash
-docker build -t flaskapp .
-```
-
-- Now, make sure that you have created a network using following command
-```bash
-docker network create twotier
-```
-
-- Attach both the containers in the same network, so that they can communicate with each other
-
-i) MySQL container 
-```bash
-docker run -d \
-    --name mysql \
-    -v mysql-data:/var/lib/mysql \
-    --network=twotier \
-    -e MYSQL_DATABASE=mydb \
-    -e MYSQL_ROOT_PASSWORD=admin \
-    -p 3306:3306 \
-    mysql:5.7
-
-```
-ii) Backend container
-```bash
-docker run -d \
-    --name flaskapp \
-    --network=twotier \
-    -e MYSQL_HOST=mysql \
-    -e MYSQL_USER=root \
-    -e MYSQL_PASSWORD=admin \
-    -e MYSQL_DB=mydb \
-    -p 5000:5000 \
-    flaskapp:latest
-
-```
 
 ## Notes
 
